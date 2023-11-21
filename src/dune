@@ -1,0 +1,4 @@
+(executable
+ (public_name LangGen)
+ (name main)
+ (libraries LangGen))

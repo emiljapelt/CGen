@@ -1,0 +1,8 @@
+lib: [
+  "_build/install/default/lib/LangGen/META"
+  "_build/install/default/lib/LangGen/dune-package"
+  "_build/install/default/lib/LangGen/opam"
+]
+bin: [
+  "_build/install/default/bin/LangGen"
+]
