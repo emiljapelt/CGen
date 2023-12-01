@@ -62,7 +62,7 @@ and print_binary_op b = match b with
 | DIVIDE -> " / "
 
 and print_expression e = match e with
-| E_Null -> "NULL"
+| E_Null -> "(void*)0"
 | E_Int i -> string_of_int i
 | E_Char c -> Printf.sprintf "'%s'" c
 | E_Float f -> string_of_float f
@@ -99,8 +99,6 @@ and print_toplevel t = match t with
 type generators =
 | Generators of 
   int * (* Counter *)
-  (string*typ) list * (* Variable identifiers *)
-  (string*typ*(typ list)) list * (* Function identifiers *)
   ((typ * bool * (generator_limits -> generators -> expression)) list) * (* Expression generators*)
   ((bool * (generator_limits -> generators -> (statement*generators))) list) * (* Statement generators*)
   ((generator_limits -> generators -> (toplevel*generators)) list) (* Topleved generators *)
@@ -139,16 +137,16 @@ let rec generate_binary_op () = match Random.int 4 with
 | 3 -> DIVIDE
 | _ -> failwith "Unknown binary operator"
 
-and generate_expression typ (GenLimit(ed,_) as gl) (Generators(_,_,_,expr_gens,_,_) as gs) = 
+and generate_expression typ (GenLimit(ed,_) as gl) (Generators(_,expr_gens,_,_) as gs) = 
   let expr_gens = if ed <= 0 then List.filter (fun (_,flat,_) -> flat) expr_gens else expr_gens in
   let expr_gens = List.filter (fun (t,_,_) -> if typ = t then true else false) expr_gens in
   let (_,_,f) = List.nth expr_gens (Random.int (List.length expr_gens)) in f (gs_expr_dec gl) gs
 
-and generate_statement (GenLimit(_,sd) as gl) (Generators(_,_,_,_,stmt_gens,_) as gs) = 
+and generate_statement (GenLimit(_,sd) as gl) (Generators(_,_,stmt_gens,_) as gs) = 
   let stmt_gens = if sd <= 0 then List.filter (fun (flat,_) -> flat) stmt_gens else stmt_gens in
   let (_,f) = List.nth stmt_gens (Random.int (List.length stmt_gens)) in f (gs_stmt_dec gl) gs
 
-and generate_toplevel gl (Generators(_,_,_,_,_,toplevel_gens) as gs) = 
+and generate_toplevel gl (Generators(_,_,_,toplevel_gens) as gs) = 
   let f = List.nth toplevel_gens (Random.int (List.length toplevel_gens)) in f gl gs
 
 and generate_compilation_unit min range gl gs =

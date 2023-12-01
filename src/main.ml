@@ -19,43 +19,22 @@ let dec_expr_gens typ ident gens = match typ with
 | _  -> (Ptr typ,true,(fun _ _ -> E_Addr ident))::(typ,true,(fun _ _ -> E_Var ident))::gens
 
 
-
-let var_ident_gen t _ (Generators(_,var_ids,_,_,_,_)) = 
-  let correct_types = List.filter (fun (_,ty)-> t = ty) var_ids in
-  let (ident,_) = List.nth correct_types (Random.int (List.length correct_types)) in 
-  E_Var(ident)
-
-let add_var_gen t (Generators(counter,var_ids,fun_ids,expr_gens,stmt_gens,toplevel_gens) as gs) =
-  let search = List.filter (fun (_,_,f) -> f = (var_ident_gen t)) expr_gens in
-  if search = [] then Generators(counter,var_ids,fun_ids,(t,true,var_ident_gen t)::expr_gens,stmt_gens,toplevel_gens) else gs
-
-let fun_ident_gen t gl (Generators(_,_,fun_ids,_,_,_) as gs) = 
-  let correct_types = List.filter (fun (_,ty,_)-> t = ty) fun_ids in
-  let (ident,_,args) = List.nth correct_types (Random.int (List.length correct_types)) in 
-  E_Call(ident, List.map (fun arg -> generate_expression arg gl gs) args)
-
-let add_call_expr_gen t (Generators(counter,var_ids,fun_ids,expr_gens,stmt_gens,toplevel_gens) as gs) =
-  let search = List.filter (fun (_,_,f) -> f = (fun_ident_gen t)) expr_gens in
-  if search = [] then Generators(counter,var_ids,fun_ids,(t,true,fun_ident_gen t)::expr_gens,stmt_gens,toplevel_gens) else gs
-
-  
-
-let dec_gen _ (Generators(counter,var_ids,fun_ids,expr_gens,stmt_gens,toplevel_gens)) =
+let dec_gen _ (Generators(counter,expr_gens,stmt_gens,toplevel_gens)) =
   let ident = "var_"^(string_of_int counter) in
   let typ = generate_nonvoid () in
-  (S_Declare(typ, ident), Generators(counter+1,var_ids,fun_ids,(dec_expr_gens typ ident expr_gens),(true, fun gl gs -> (S_Assign(ident,generate_expression typ gl gs),gs))::stmt_gens,toplevel_gens))
+  (S_Declare(typ, ident), Generators(counter+1,(dec_expr_gens typ ident expr_gens),(true, fun gl gs -> (S_Assign(ident,generate_expression typ gl gs),gs))::stmt_gens,toplevel_gens))
 
-let dec_arr_gen _ (Generators(counter,var_ids,fun_ids,expr_gens,stmt_gens,toplevel_gens)) =
+let dec_arr_gen _ (Generators(counter,expr_gens,stmt_gens,toplevel_gens)) =
   let ident = "var_"^(string_of_int counter) in
   let typ = generate_nonvoid () in
   let arr_typ = Ptr typ in
   let size = (Random.int 100) + 1 in
-  (S_DeclareArray(typ,ident,E_Int size), (Generators(counter+1,var_ids,fun_ids,(Ptr arr_typ,true,(fun _ _ -> E_Addr ident))::(arr_typ,true,(fun _ _ -> E_Var ident))::(typ,true,(fun gl gs -> E_Index(ident, int_gen size gl gs)))::expr_gens, (true, fun gl gs -> (S_ArrayAssign(ident,int_gen size gl gs,generate_expression typ gl gs),gs))::stmt_gens,toplevel_gens)) )
+  (S_DeclareArray(typ,ident,E_Int size), (Generators(counter+1,(Ptr arr_typ,true,(fun _ _ -> E_Addr ident))::(arr_typ,true,(fun _ _ -> E_Var ident))::(typ,true,(fun gl gs -> E_Index(ident, int_gen size gl gs)))::expr_gens, (true, fun gl gs -> (S_ArrayAssign(ident,int_gen size gl gs,generate_expression typ gl gs),gs))::stmt_gens,toplevel_gens)) )
 
-let dec_ass_gen gl (Generators(counter,var_ids,fun_ids,expr_gens,stmt_gens,toplevel_gens) as gs) =
+let dec_ass_gen gl (Generators(counter,expr_gens,stmt_gens,toplevel_gens) as gs) =
   let ident = "var_"^(string_of_int counter) in
   let typ = generate_nonvoid () in
-  (S_DeclareAssign(typ, ident, generate_expression typ gl gs), Generators(counter+1,var_ids,fun_ids,(dec_expr_gens typ ident expr_gens),(true,fun gl gs -> (S_Assign(ident,generate_expression typ gl gs),gs))::stmt_gens,toplevel_gens))
+  (S_DeclareAssign(typ, ident, generate_expression typ gl gs), Generators(counter+1,(dec_expr_gens typ ident expr_gens),(true,fun gl gs -> (S_Assign(ident,generate_expression typ gl gs),gs))::stmt_gens,toplevel_gens))
 
 let gen_stmt_list min range gl gs =
   let rec aux i gs acc = match i with
@@ -73,9 +52,9 @@ let if_gen gl gs =
   let (stmt2,_) = block_gen 0 4 gl gs in
   (S_If(generate_expression Int gl gs, stmt1, stmt2), gs)
 
-let while_gen gl (Generators(counter,var_ids,fun_ids,expr_gens,stmt_gens,top_gens) as gs) =
+let while_gen gl (Generators(counter,expr_gens,stmt_gens,top_gens) as gs) =
   let cond = generate_expression Int gl gs in
-  let (stmt,_) = block_gen 1 4 gl (Generators(counter+1,var_ids,fun_ids,expr_gens,(true,fun _ _ -> (S_Break,gs))::(true,fun _ _ -> (S_Continue,gs))::stmt_gens,top_gens)) in
+  let (stmt,_) = block_gen 1 4 gl (Generators(counter+1,expr_gens,(true,fun _ _ -> (S_Break,gs))::(true,fun _ _ -> (S_Continue,gs))::stmt_gens,top_gens)) in
   (S_While(cond,stmt), gs)
 
 let stmt_gens = [
@@ -88,26 +67,26 @@ let stmt_gens = [
 ]
 
 
-let top_dec_gen _ (Generators(counter,var_ids,fun_ids,expr_gens,stmt_gens,toplevel_gens)) =
+let top_dec_gen _ (Generators(counter,expr_gens,stmt_gens,toplevel_gens)) =
   let ident = "var_"^(string_of_int counter) in
   let typ = generate_nonvoid () in
-  (T_Declare(typ, ident), Generators(counter+1,var_ids,fun_ids,(typ,true,(fun _ _ -> E_Var ident))::expr_gens,(true,fun gl gs -> (S_Assign(ident,generate_expression typ gl gs),gs))::stmt_gens,toplevel_gens))
+  (T_Declare(typ, ident), Generators(counter+1,(typ,true,(fun _ _ -> E_Var ident))::expr_gens,(true,fun gl gs -> (S_Assign(ident,generate_expression typ gl gs),gs))::stmt_gens,toplevel_gens))
 
 let generate_params _ gs =
-  let rec aux i (Generators(counter,var_ids,fun_ids,expr_gens,stmt_gens,toplevel_gens) as gs) acc = match i with
+  let rec aux i (Generators(counter,expr_gens,stmt_gens,toplevel_gens) as gs) acc = match i with
     | 0 -> (acc,gs)
     | n -> (
       let typ = generate_nonvoid () in
       let ident = "param_"^(string_of_int counter) in
-      aux (n-1) (Generators(counter+1,var_ids,fun_ids,(dec_expr_gens typ ident expr_gens),stmt_gens,toplevel_gens)) ((typ,ident)::acc)
+      aux (n-1) (Generators(counter+1,(dec_expr_gens typ ident expr_gens),stmt_gens,toplevel_gens)) ((typ,ident)::acc)
     )
   in
   aux (Random.int 5) gs []
 
-let function_gen gl (Generators(counter,var_ids,fun_ids,expr_gens,stmt_gens,toplevel_gens) as gs) =
+let function_gen gl (Generators(counter,expr_gens,stmt_gens,toplevel_gens) as gs) =
   let ident = "func_"^(string_of_int counter) in
   let typ = generate_type () in 
-  let (params, Generators(counter,_,_,fun_expr_gens,_,_)) = generate_params gl gs in
+  let (params, Generators(counter,fun_expr_gens,_,_)) = generate_params gl gs in
   let (fun_stmt_gens) = match typ with
   | Void -> (true,fun _ gs -> (S_BlindReturn,gs))::stmt_gens
   | Int -> (true,fun gl gs -> (S_Return(generate_expression Int gl gs),gs))::stmt_gens
@@ -115,16 +94,19 @@ let function_gen gl (Generators(counter,var_ids,fun_ids,expr_gens,stmt_gens,topl
   | Float -> (true,fun gl gs -> (S_Return(generate_expression Float gl gs),gs))::stmt_gens
   | _ -> failwith "Nope"
   in
-  let (stmts,Generators(counter,_,_,_,_,_)) = gen_stmt_list 2 5 gl (Generators(counter+1,var_ids,fun_ids,fun_expr_gens,fun_stmt_gens,toplevel_gens)) in
-  (T_Function(typ, ident, params, stmts), Generators(counter+1,var_ids,fun_ids,(typ,false,(fun gl gs -> E_Call(ident, List.map (fun (t,_) -> generate_expression t gl gs) params)))::expr_gens, (true,fun gl gs -> S_Call(ident, List.map (fun (t,_) -> generate_expression t gl gs) params),gs)::stmt_gens, toplevel_gens))
+  let (stmts,Generators(counter,_,_,_)) = gen_stmt_list 2 5 gl (Generators(counter+1,fun_expr_gens,fun_stmt_gens,toplevel_gens)) in
+  (T_Function(typ, ident, params, stmts), Generators(counter+1,(typ,false,(fun gl gs -> E_Call(ident, List.map (fun (t,_) -> generate_expression t gl gs) params)))::expr_gens, (true,fun gl gs -> S_Call(ident, List.map (fun (t,_) -> generate_expression t gl gs) params),gs)::stmt_gens, toplevel_gens))
 
 let toplevel_gens = [
   top_dec_gen;
   function_gen;
 ]
 
-let () = Random.init (int_of_string (Sys.argv.(1)))
-let gs = (Generators(0,[],[],expr_gens,stmt_gens,toplevel_gens))
+
+
+let seed = int_of_string (Sys.argv.(1))
+let () = if seed = 0 then Random.self_init () else Random.init seed
+let gs = (Generators(0,expr_gens,stmt_gens,toplevel_gens))
 let gl = (GenLimit(int_of_string (Sys.argv.(2)),int_of_string (Sys.argv.(3)))) 
 let tops = int_of_string (Sys.argv.(4))
 
@@ -132,4 +114,4 @@ let (tops, gs) = generate_compilation_unit 0 tops gl gs
 let (main_block, _) = gen_stmt_list 4 5 gl gs
 let tops = tops @ [T_Function(Void, "main", [], main_block)]
 
-let () = Printf.printf "#include <stdlib.h>\n" ; List.iter (fun top -> Printf.printf "%s" (print_toplevel top)) tops
+let () = (*Printf.printf "#include <stddef.h>\n" ;*) List.iter (fun top -> Printf.printf "%s" (print_toplevel top)) tops
