@@ -6,12 +6,18 @@ let int_gen n = fun _ _ -> E_Int(Random.int n)
 let expr_gens = [
   (Int, true, int_gen 100);
   (Int, false, (fun gl gs -> E_Binary(generate_binary_op (), generate_expression Int gl gs, generate_expression Int gl gs)));
+  (Int, false, (fun gl gs -> E_Ternary(generate_expression Int gl gs, generate_expression Int gl gs, generate_expression Int gl gs)));
   (Char, true, (fun _ _ -> E_Char(Random.int 128 |> Char.chr |> Char.escaped)));
+  (Char, false, (fun gl gs -> E_Ternary(generate_expression Int gl gs, generate_expression Char gl gs, generate_expression Char gl gs)));
   (Float, true, (fun _ _ -> E_Float(Random.float 100.0)));
-  (Float, false, (fun gl gs -> E_Binary(generate_binary_op (), generate_expression Float gl gs, generate_expression Float gl gs)));
+  (Float, false, (fun gl gs -> E_Binary(generate_binary_op (), generate_expression Float (gs_expr_dec gl) gs, generate_expression Float gl gs)));
+  (Float, false, (fun gl gs -> E_Ternary(generate_expression Int gl gs, generate_expression Float gl gs, generate_expression Float gl gs)));
   (Ptr Int, true, (fun _ _ -> E_Null));
+  (Ptr Int, false, (fun gl gs -> E_Ternary(generate_expression Int gl gs, generate_expression (Ptr Int) gl gs, generate_expression (Ptr Int) gl gs)));
   (Ptr Char, true, (fun _ _ -> E_Null));
+  (Ptr Char, false, (fun gl gs -> E_Ternary(generate_expression Int gl gs, generate_expression (Ptr Char) gl gs, generate_expression (Ptr Char) gl gs)));
   (Ptr Float, true, (fun _ _ -> E_Null));
+  (Ptr Float, false, (fun gl gs -> E_Ternary(generate_expression Int gl gs, generate_expression (Ptr Float) gl gs, generate_expression (Ptr Float) gl gs)));
 ]
 
 let call_gens = expr_gens
@@ -41,7 +47,7 @@ let dec_ass_gen gl (Generators(counter,expr_gens,call_gens,stmt_gens,scall_gens,
 let gen_stmt_list min range gl gs =
   let rec aux i gs acc = match i with
     | 0 -> List.rev acc
-    | n -> let (stmt,gs) = generate_statement gl gs in aux (n-1) gs (stmt::acc)
+    | n -> let (stmt,ngs) = generate_statement gl gs in aux (n-1) ngs (stmt::acc)
   in
   (aux ((Random.int range)+min) gs [], gs)
 
@@ -57,7 +63,9 @@ let if_gen gl gs =
 let while_gen gl (Generators(counter,expr_gens,call_gens,stmt_gens,scall_gens,top_gens) as gs) =
   let cond = generate_expression Int gl gs in
   let (stmt,_) = block_gen 1 4 gl (Generators(counter+1,expr_gens,call_gens,(true,fun _ _ -> (S_Break,gs))::(true,fun _ _ -> (S_Continue,gs))::stmt_gens,scall_gens,top_gens)) in
-  (S_While(cond,stmt), gs)
+  match () |> Random.bool with
+  | true -> (S_DoWhile(stmt,cond), gs)
+  | false -> (S_While(cond,stmt), gs)
 
 let stmt_gens = [
   (true, dec_gen);
