@@ -73,7 +73,7 @@ let stmt_gens = [
   (true, dec_arr_gen);
   (false, block_gen 2 5);
   (false, if_gen);
-  (true, while_gen)
+  (false, while_gen)
 ]
 
 let scall_gens = stmt_gens

@@ -87,9 +87,9 @@ and print_statement indent s = match s with
 | S_Call(ident,args) -> tab_string indent ^ ident ^ "("^(String.concat "," (List.map print_expression args))^");\n"
 | S_Return(expr) -> tab_string indent ^ "return " ^ print_expression expr ^ ";\n"
 | S_BlindReturn -> tab_string indent ^ "return;\n"
-| S_If(expr,stmt1,stmt2) -> tab_string indent ^ "if (" ^print_expression expr^ ")\n" ^ (print_statement (indent+1) stmt1) ^ tab_string indent ^ "else\n" ^ (print_statement (indent+1) stmt2)
-| S_While(cond, stmt) -> tab_string indent ^ "while(" ^ print_expression cond ^ ")\n"^ (print_statement (indent+1) stmt)
-| S_DoWhile(stmt,cond) -> tab_string indent ^ "do\n" ^ (print_statement (indent+1) stmt) ^ tab_string indent ^"while (" ^ (print_expression cond) ^ ");\n"
+| S_If(expr,stmt1,stmt2) -> tab_string indent ^ "if (" ^print_expression expr^ ")\n" ^ (print_statement indent stmt1) ^ tab_string indent ^ "else\n" ^ (print_statement indent stmt2)
+| S_While(cond, stmt) -> tab_string indent ^ "while(" ^ print_expression cond ^ ")\n"^ (print_statement indent stmt)
+| S_DoWhile(stmt,cond) -> tab_string indent ^ "do\n" ^ (print_statement indent stmt) ^ tab_string indent ^"while (" ^ (print_expression cond) ^ ");\n"
 | S_Break -> tab_string indent ^ "break;\n"
 | S_Continue -> tab_string indent ^ "continue;\n"
 
@@ -165,9 +165,9 @@ and generate_statement (GenLimit(_,sd) as gl) (Generators(_,_,_,stmt_gens,scall_
 and generate_toplevel gl (Generators(_,_,_,_,_,toplevel_gens) as gs) = 
   let f = List.nth toplevel_gens (Random.int (List.length toplevel_gens)) in f gl gs
 
-and generate_compilation_unit range gl gs =
+and generate_compilation_unit toplevels gl gs =
   let rec aux i gs acc = match i with
   | 0 -> (List.rev acc, gs)
   | n -> let (top,gs) = generate_toplevel gl gs in aux (n-1) gs (top::acc)
   in
-  aux (Random.int range) gs []
+  aux toplevels gs []
