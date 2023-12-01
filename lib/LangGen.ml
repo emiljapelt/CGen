@@ -100,7 +100,9 @@ type generators =
 | Generators of 
   int * (* Counter *)
   ((typ * bool * (generator_limits -> generators -> expression)) list) * (* Expression generators*)
+  ((typ * bool * (generator_limits -> generators -> expression)) list) * (* Call generators *)
   ((bool * (generator_limits -> generators -> (statement*generators))) list) * (* Statement generators*)
+  ((bool * (generator_limits -> generators -> (statement*generators))) list) * (* Call generators*)
   ((generator_limits -> generators -> (toplevel*generators)) list) (* Topleved generators *)
 
 and generator_limits =
@@ -137,21 +139,30 @@ let rec generate_binary_op () = match Random.int 4 with
 | 3 -> DIVIDE
 | _ -> failwith "Unknown binary operator"
 
-and generate_expression typ (GenLimit(ed,_) as gl) (Generators(_,expr_gens,_,_) as gs) = 
-  let expr_gens = if ed <= 0 then List.filter (fun (_,flat,_) -> flat) expr_gens else expr_gens in
-  let expr_gens = List.filter (fun (t,_,_) -> if typ = t then true else false) expr_gens in
-  let (_,_,f) = List.nth expr_gens (Random.int (List.length expr_gens)) in f (gs_expr_dec gl) gs
+and generate_expression typ (GenLimit(ed,_) as gl) (Generators(_,expr_gens,call_gens,_,_,_) as gs) = 
+  let gens = match () |> Random.bool with
+  | true -> call_gens
+  | false -> expr_gens
+  in
+  let gens = if ed <= 0 then List.filter (fun (_,flat,_) -> flat) gens else gens in
+  let gens = List.filter (fun (t,_,_) -> if typ = t then true else false) gens in
+  let (_,_,f) = List.nth gens (Random.int (List.length gens)) in f (gs_expr_dec gl) gs
+  
 
-and generate_statement (GenLimit(_,sd) as gl) (Generators(_,_,stmt_gens,_) as gs) = 
-  let stmt_gens = if sd <= 0 then List.filter (fun (flat,_) -> flat) stmt_gens else stmt_gens in
-  let (_,f) = List.nth stmt_gens (Random.int (List.length stmt_gens)) in f (gs_stmt_dec gl) gs
+and generate_statement (GenLimit(_,sd) as gl) (Generators(_,_,_,stmt_gens,scall_gens,_) as gs) = 
+  let gens = match () |> Random.bool with
+  | true -> stmt_gens
+  | false -> scall_gens
+  in
+  let gens = if sd <= 0 then List.filter (fun (flat,_) -> flat) gens else gens in
+  let (_,f) = List.nth gens (Random.int (List.length gens)) in f (gs_stmt_dec gl) gs
 
-and generate_toplevel gl (Generators(_,_,_,toplevel_gens) as gs) = 
+and generate_toplevel gl (Generators(_,_,_,_,_,toplevel_gens) as gs) = 
   let f = List.nth toplevel_gens (Random.int (List.length toplevel_gens)) in f gl gs
 
-and generate_compilation_unit min range gl gs =
+and generate_compilation_unit range gl gs =
   let rec aux i gs acc = match i with
   | 0 -> (List.rev acc, gs)
   | n -> let (top,gs) = generate_toplevel gl gs in aux (n-1) gs (top::acc)
   in
-  aux ((Random.int range) + min) gs []
+  aux (Random.int range) gs []
