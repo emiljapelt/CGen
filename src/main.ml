@@ -114,6 +114,17 @@ let toplevel_gens = [
   function_gen;
 ]
 
+let main_gen gl (Generators(counter,expr_gens,call_gens,stmt_gens,scall_gens,toplevel_gens)) = 
+  match () |> Random.bool with
+  | true -> (
+    let (main_block, gs) = gen_stmt_list 4 5 gl (Generators(counter,expr_gens,call_gens,(true,fun gl gs -> (S_Return(generate_expression Int gl gs),gs))::stmt_gens,scall_gens,toplevel_gens)) in
+    [T_Function(Int, "main", [], main_block@[S_Return(generate_expression Int gl gs)])]
+  )
+  | false -> (
+    let (main_block, _) = gen_stmt_list 4 5 gl (Generators(counter,expr_gens,call_gens,stmt_gens,scall_gens,toplevel_gens)) in
+    [T_Function(Void, "main", [], main_block)]
+  )
+
 
 
 let seed = int_of_string (Sys.argv.(1))
@@ -123,7 +134,6 @@ let gl = (GenLimit(int_of_string (Sys.argv.(2)),int_of_string (Sys.argv.(3))))
 let tops = int_of_string (Sys.argv.(4))
 
 let (tops, gs) = generate_compilation_unit tops gl gs
-let (main_block, _) = gen_stmt_list 4 5 gl gs
-let tops = tops @ [T_Function(Void, "main", [], main_block)]
+let tops = tops @ (main_gen gl gs)
 
 let () = (*Printf.printf "#include <stddef.h>\n" ;*) List.iter (fun top -> Printf.printf "%s" (print_toplevel top)) tops
