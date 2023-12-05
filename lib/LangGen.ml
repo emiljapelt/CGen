@@ -1,57 +1,13 @@
 
-(** Absyn **)
-type typ =
-| Int
-| Char
-| Float
-| Void
-| Ptr of typ
-
-and binary_op =
-| PLUS
-| MINUS
-| TIMES
-| DIVIDE
-
-and expression =
-| E_Null
-| E_Int of int
-| E_Float of float
-| E_Char of string
-| E_Var of string
-| E_Binary of binary_op * expression * expression
-| E_Call of string * (expression list)
-| E_Addr of string
-| E_Deref of string
-| E_Index of string * expression
-| E_Ternary of expression * expression * expression
-
-and statement =
-| S_Declare of typ * string
-| S_DeclareArray of typ * string * expression
-| S_DeclareAssign of typ * string * expression
-| S_Assign of string * expression
-| S_ArrayAssign of string * expression * expression
-| S_Block of statement list
-| S_Call of string * (expression list)
-| S_Return of expression
-| S_BlindReturn
-| S_If of expression * statement * statement
-| S_While of expression * statement
-| S_DoWhile of statement * expression
-| S_Break
-| S_Continue
-
-and toplevel =
-| T_Function of typ * string * (typ * string) list * statement list
-| T_Declare of typ * string
-| T_DeclareAssign of typ * string * expression
+open Absyn
 
 (** Printer **)
 let tab_string i = String.init i (fun _ -> '\t')
 
 let rec print_typ t = match t with
 | Int -> "int"
+| Short -> "short"
+| Long -> "long"
 | Char -> "char"
 | Float -> "float"
 | Void -> "void"
@@ -65,7 +21,9 @@ and print_binary_op b = match b with
 
 and print_expression e = match e with
 | E_Null -> "(void*)0"
+| E_Short i -> string_of_int i
 | E_Int i -> string_of_int i
+| E_Long i -> string_of_int i ^"l"
 | E_Char c -> Printf.sprintf "'%s'" c
 | E_Float f -> string_of_float f
 | E_Var v -> v
@@ -121,20 +79,26 @@ let gs_expr_dec (GenLimit(expr_depth,stmt_depth)) =
 let gs_stmt_dec (GenLimit(expr_depth,stmt_depth)) =
   GenLimit(expr_depth,stmt_depth-1)
 
-let generate_type () = match Random.int 4 with
-| 0 -> Int
-| 1 -> Char
-| 2 -> Float
-| 3 -> Void
+let generate_type () = match Random.int 6 with
+| 0 -> Short
+| 1 -> Int
+| 2 -> Long
+| 3 -> Char
+| 4 -> Float
+| 5 -> Void
 | _ -> failwith "Unknown type"
 
-let generate_nonvoid () = match Random.int (3*2) with
-| 0 -> Int
-| 1 -> Char
-| 2 -> Float
-| 3 -> Ptr Int
-| 4 -> Ptr Char
-| 5 -> Ptr Float
+let generate_nonvoid () = match Random.int (5*2) with
+| 0 -> Short
+| 1 -> Int
+| 2 -> Long
+| 3 -> Char
+| 4 -> Float
+| 5 -> Ptr Short
+| 6 -> Ptr Int
+| 7 -> Ptr Long
+| 8 -> Ptr Char
+| 9 -> Ptr Float
 | _ -> failwith "Unknown type"
 
 let rec generate_binary_op () = match Random.int 4 with

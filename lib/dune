@@ -1,4 +1,4 @@
 (library
- (name LangGen)
- (modules LangGen)
+ (name LibCGen)
+ (modules Absyn LangGen)
 )

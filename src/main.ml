@@ -1,23 +1,35 @@
+let () = Printexc.record_backtrace true
 
-open LangGen
+open LibCGen.Absyn
+open LibCGen.LangGen
 
 let int_gen n = fun _ _ -> E_Int(Random.int n)
 
 let expr_gens = [
+  (Short, true, fun _ _ -> E_Short(Random.int 100));
+  (Short, false, (fun gl gs -> E_Binary(generate_binary_op (), generate_expression Short (gs_expr_dec gl) gs, generate_expression Short (gs_expr_dec gl) gs)));
+  (Short, false, (fun gl gs -> E_Ternary(generate_expression Int (gs_expr_dec gl) gs, generate_expression Short (gs_expr_dec gl) gs, generate_expression Short (gs_expr_dec gl) gs)));
   (Int, true, int_gen 100);
-  (Int, false, (fun gl gs -> E_Binary(generate_binary_op (), generate_expression Int gl gs, generate_expression Int gl gs)));
-  (Int, false, (fun gl gs -> E_Ternary(generate_expression Int gl gs, generate_expression Int gl gs, generate_expression Int gl gs)));
+  (Int, false, (fun gl gs -> E_Binary(generate_binary_op (), generate_expression Int (gs_expr_dec gl) gs, generate_expression Int (gs_expr_dec gl) gs)));
+  (Int, false, (fun gl gs -> E_Ternary(generate_expression Int (gs_expr_dec gl) gs, generate_expression Int (gs_expr_dec gl) gs, generate_expression Int (gs_expr_dec gl) gs)));
+  (Long, true, fun _ _ -> E_Long(Random.int 100));
+  (Long, false, (fun gl gs -> E_Binary(generate_binary_op (), generate_expression Long (gs_expr_dec gl) gs, generate_expression Long (gs_expr_dec gl) gs)));
+  (Long, false, (fun gl gs -> E_Ternary(generate_expression Int (gs_expr_dec gl) gs, generate_expression Long (gs_expr_dec gl) gs, generate_expression Long (gs_expr_dec gl) gs)));
   (Char, true, (fun _ _ -> E_Char(Random.int 128 |> Char.chr |> Char.escaped)));
-  (Char, false, (fun gl gs -> E_Ternary(generate_expression Int gl gs, generate_expression Char gl gs, generate_expression Char gl gs)));
+  (Char, false, (fun gl gs -> E_Ternary(generate_expression Int (gs_expr_dec gl) gs, generate_expression Char (gs_expr_dec gl) gs, generate_expression Char (gs_expr_dec gl) gs)));
   (Float, true, (fun _ _ -> E_Float(Random.float 100.0)));
-  (Float, false, (fun gl gs -> E_Binary(generate_binary_op (), generate_expression Float (gs_expr_dec gl) gs, generate_expression Float gl gs)));
-  (Float, false, (fun gl gs -> E_Ternary(generate_expression Int gl gs, generate_expression Float gl gs, generate_expression Float gl gs)));
+  (Float, false, (fun gl gs -> E_Binary(generate_binary_op (), generate_expression Float (gs_expr_dec gl) gs, generate_expression Float (gs_expr_dec gl) gs)));
+  (Float, false, (fun gl gs -> E_Ternary(generate_expression Int (gs_expr_dec gl) gs, generate_expression Float (gs_expr_dec gl) gs, generate_expression Float (gs_expr_dec gl) gs)));
+  (Ptr Short, true, (fun _ _ -> E_Null));
+  (Ptr Short, false, (fun gl gs -> E_Ternary(generate_expression Int (gs_expr_dec gl) gs, generate_expression (Ptr Short) (gs_expr_dec gl) gs, generate_expression (Ptr Short) (gs_expr_dec gl) gs)));
   (Ptr Int, true, (fun _ _ -> E_Null));
-  (Ptr Int, false, (fun gl gs -> E_Ternary(generate_expression Int gl gs, generate_expression (Ptr Int) gl gs, generate_expression (Ptr Int) gl gs)));
+  (Ptr Int, false, (fun gl gs -> E_Ternary(generate_expression Int (gs_expr_dec gl) gs, generate_expression (Ptr Int) (gs_expr_dec gl) gs, generate_expression (Ptr Int) (gs_expr_dec gl) gs)));
+  (Ptr Long, true, (fun _ _ -> E_Null));
+  (Ptr Long, false, (fun gl gs -> E_Ternary(generate_expression Int (gs_expr_dec gl) gs, generate_expression (Ptr Long) (gs_expr_dec gl) gs, generate_expression (Ptr Long) (gs_expr_dec gl) gs)));
   (Ptr Char, true, (fun _ _ -> E_Null));
-  (Ptr Char, false, (fun gl gs -> E_Ternary(generate_expression Int gl gs, generate_expression (Ptr Char) gl gs, generate_expression (Ptr Char) gl gs)));
+  (Ptr Char, false, (fun gl gs -> E_Ternary(generate_expression Int (gs_expr_dec gl) gs, generate_expression (Ptr Char) (gs_expr_dec gl) gs, generate_expression (Ptr Char) (gs_expr_dec gl) gs)));
   (Ptr Float, true, (fun _ _ -> E_Null));
-  (Ptr Float, false, (fun gl gs -> E_Ternary(generate_expression Int gl gs, generate_expression (Ptr Float) gl gs, generate_expression (Ptr Float) gl gs)));
+  (Ptr Float, false, (fun gl gs -> E_Ternary(generate_expression Int (gs_expr_dec gl) gs, generate_expression (Ptr Float) (gs_expr_dec gl) gs, generate_expression (Ptr Float) (gs_expr_dec gl) gs)));
 ]
 
 let call_gens = expr_gens
@@ -101,12 +113,14 @@ let function_gen gl (Generators(counter,expr_gens,call_gens,stmt_gens,scall_gens
   let (params, Generators(counter,fun_expr_gens,fun_call_gens,_,_,_)) = generate_params gl gs in
   let (fun_stmt_gens) = match typ with
   | Void -> (true,fun _ gs -> (S_BlindReturn,gs))::stmt_gens
+  | Short -> (true,fun gl gs -> (S_Return(generate_expression Short gl gs),gs))::stmt_gens
   | Int -> (true,fun gl gs -> (S_Return(generate_expression Int gl gs),gs))::stmt_gens
+  | Long -> (true,fun gl gs -> (S_Return(generate_expression Long gl gs),gs))::stmt_gens
   | Char -> (true,fun gl gs -> (S_Return(generate_expression Char gl gs),gs))::stmt_gens
   | Float -> (true,fun gl gs -> (S_Return(generate_expression Float gl gs),gs))::stmt_gens
   | _ -> failwith "Nope"
   in
-  let (stmts,Generators(counter,_,_,_,_,_)) = gen_stmt_list 2 5 gl (Generators(counter+1,fun_expr_gens,fun_call_gens,fun_stmt_gens,scall_gens,toplevel_gens)) in
+  let (stmts,Generators(counter,_,_,_,_,_)) = gen_stmt_list 2 10 gl (Generators(counter+1,fun_expr_gens,fun_call_gens,fun_stmt_gens,scall_gens,toplevel_gens)) in
   (T_Function(typ, ident, params, stmts), Generators(counter+1,expr_gens,(typ,false,(fun gl gs -> E_Call(ident, List.map (fun (t,_) -> generate_expression t gl gs) params)))::call_gens,stmt_gens,(true,fun gl gs -> S_Call(ident, List.map (fun (t,_) -> generate_expression t gl gs) params),gs)::scall_gens, toplevel_gens))
 
 let toplevel_gens = [
