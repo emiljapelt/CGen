@@ -23,7 +23,7 @@ and print_expression e = match e with
 | E_Null -> "(void*)0"
 | E_Short i -> string_of_int i
 | E_Int i -> string_of_int i
-| E_Long i -> string_of_int i ^"l"
+| E_Long l -> Int64.to_string l ^"l"
 | E_Char c -> Printf.sprintf "'%s'" c
 | E_Float f -> string_of_float f
 | E_Var v -> v
@@ -40,14 +40,14 @@ and print_statement indent s = match s with
 | S_DeclareArray(t, ident, expr) -> tab_string indent ^ print_typ t ^ " " ^ ident ^ "[" ^ print_expression expr ^ "];\n"
 | S_Assign(ident, expr) -> tab_string indent ^ ident ^ " = " ^ print_expression expr ^ ";\n"
 | S_ArrayAssign(ident,idx,expr) -> tab_string indent ^ ident ^ "[" ^print_expression idx^ "]" ^ " = " ^ print_expression expr ^ ";\n"
-| S_Block([]) -> "{}\n"
-| S_Block(stmts) -> "{\n" ^ (String.concat "" (List.map (print_statement (indent+1)) stmts)) ^ tab_string indent ^ "}\n"
+| S_Block([]) -> tab_string indent ^"{}\n"
+| S_Block(stmts) -> tab_string indent ^ "{\n" ^ (String.concat "" (List.map (print_statement (indent+1)) stmts)) ^ tab_string indent ^ "}\n"
 | S_Call(ident,args) -> tab_string indent ^ ident ^ "("^(String.concat "," (List.map print_expression args))^");\n"
 | S_Return(expr) -> tab_string indent ^ "return " ^ print_expression expr ^ ";\n"
 | S_BlindReturn -> tab_string indent ^ "return;\n"
-| S_If(expr,stmt1,stmt2) -> tab_string indent ^ "if (" ^print_expression expr^ ") " ^ (print_statement indent stmt1) ^ tab_string indent ^ "else " ^ (print_statement indent stmt2)
-| S_While(cond, stmt) -> tab_string indent ^ "while(" ^ print_expression cond ^ ") "^ (print_statement indent stmt)
-| S_DoWhile(stmt,cond) -> tab_string indent ^ "do " ^ (print_statement indent stmt) ^ tab_string indent ^"while (" ^ (print_expression cond) ^ ");\n"
+| S_If(expr,stmt1,stmt2) -> tab_string indent ^ "if (" ^print_expression expr^ ")\n" ^ (print_statement indent stmt1) ^ tab_string indent ^ "else " ^ (print_statement indent stmt2)
+| S_While(cond, stmt) -> tab_string indent ^ "while(" ^ print_expression cond ^ ")\n"^ (print_statement indent stmt)
+| S_DoWhile(stmt,cond) -> tab_string indent ^ "do\n" ^ (print_statement indent stmt) ^ tab_string indent ^"while (" ^ (print_expression cond) ^ ");\n"
 | S_Break -> tab_string indent ^ "break;\n"
 | S_Continue -> tab_string indent ^ "continue;\n"
 

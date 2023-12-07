@@ -15,7 +15,7 @@ and binary_op =
 
 and expression =
 | E_Null
-| E_Long of int
+| E_Long of int64
 | E_Int of int
 | E_Short of int
 | E_Float of float
