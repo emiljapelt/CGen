@@ -45,7 +45,7 @@ and print_statement indent s = match s with
 | S_Call(ident,args) -> tab_string indent ^ ident ^ "("^(String.concat "," (List.map print_expression args))^");\n"
 | S_Return(expr) -> tab_string indent ^ "return " ^ print_expression expr ^ ";\n"
 | S_BlindReturn -> tab_string indent ^ "return;\n"
-| S_If(expr,stmt1,stmt2) -> tab_string indent ^ "if (" ^print_expression expr^ ")\n" ^ (print_statement indent stmt1) ^ tab_string indent ^ "else " ^ (print_statement indent stmt2)
+| S_If(expr,stmt1,stmt2) -> tab_string indent ^ "if (" ^print_expression expr^ ")\n" ^ (print_statement indent stmt1) ^ tab_string indent ^ "else\n" ^ (print_statement indent stmt2)
 | S_While(cond, stmt) -> tab_string indent ^ "while(" ^ print_expression cond ^ ")\n"^ (print_statement indent stmt)
 | S_DoWhile(stmt,cond) -> tab_string indent ^ "do\n" ^ (print_statement indent stmt) ^ tab_string indent ^"while (" ^ (print_expression cond) ^ ");\n"
 | S_Break -> tab_string indent ^ "break;\n"
