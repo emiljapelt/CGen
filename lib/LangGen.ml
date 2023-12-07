@@ -118,7 +118,7 @@ and generate_expression typ (GenLimit(ed,_) as gl) (Generators(_,expr_gens,call_
   let (_,_,f) = List.nth gens (Random.int (List.length gens)) in f (gs_expr_dec gl) gs
   
 
-and generate_statement (GenLimit(_,sd) as gl) (Generators(cnt,_,_,stmt_gens,scall_gens,_) as gs) = 
+and generate_statement (GenLimit(_,sd) as gl) (Generators(_,_,_,stmt_gens,scall_gens,_) as gs) = 
   let gens = match () |> Random.bool with
   | true -> stmt_gens
   | false -> scall_gens
