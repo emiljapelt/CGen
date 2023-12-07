@@ -57,9 +57,9 @@ let dec_ass_gen gl (Generators(counter,expr_gens,call_gens,stmt_gens,scall_gens,
   (S_DeclareAssign(typ, ident, generate_expression typ gl gs), Generators(counter+1,(dec_expr_gens typ ident expr_gens),call_gens,(true,fun gl gs -> (S_Assign(ident,generate_expression typ gl gs),gs))::stmt_gens,scall_gens,toplevel_gens))
 
 let gen_stmt_list min range gl gs =
-  let rec aux i gs acc = match i with
+  let rec aux i aux_gs acc = match i with
     | 0 -> List.rev acc
-    | n -> let (stmt,ngs) = generate_statement gl gs in aux (n-1) ngs (stmt::acc)
+    | n -> let (stmt,ngs) = generate_statement gl aux_gs in aux (n-1) ngs (stmt::acc)
   in
   (aux ((Random.int range)+min) gs [], gs)
 
@@ -74,7 +74,7 @@ let if_gen gl gs =
 
 let while_gen gl (Generators(counter,expr_gens,call_gens,stmt_gens,scall_gens,top_gens) as gs) =
   let cond = generate_expression Int gl gs in
-  let (stmt,_) = block_gen 1 4 gl (Generators(counter+1,expr_gens,call_gens,(true,fun _ _ -> (S_Break,gs))::(true,fun _ _ -> (S_Continue,gs))::stmt_gens,scall_gens,top_gens)) in
+  let (stmt,_) = block_gen 1 4 gl (Generators(counter,expr_gens,call_gens,(true,fun _ gs -> (S_Break,gs))::(true,fun _ gs -> (S_Continue,gs))::stmt_gens,scall_gens,top_gens)) in
   match () |> Random.bool with
   | true -> (S_DoWhile(stmt,cond), gs)
   | false -> (S_While(cond,stmt), gs)
