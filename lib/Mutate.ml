@@ -4,11 +4,14 @@ type 'a mutation_result =
   | Continue of 'a
   | Stop of 'a
 
+let none elem = Continue elem
+
 let mutate 
   (mutate_expr: (expression -> expression mutation_result))
   (mutate_stmt: (statement -> statement mutation_result)) 
   (mutate_top: (toplevel -> toplevel mutation_result))
-  (prog : toplevel list) = 
+  (prog : toplevel list) 
+  = 
   let rec expr_aux expr = match mutate_expr expr with
     | Stop new_expr -> new_expr
     | Continue new_expr -> match expr with

@@ -1,9 +1,9 @@
 let () = Printexc.record_backtrace true
 
-open LibCGen.Absyn
-open LibCGen.LangGen
-open LibCGen.Mutate
-open LibCGen.Gens
+
+open CGen.Generators
+open CGen.Mutate
+open CGen.Gens
 
 
 let seed = int_of_string (Sys.argv.(1))
@@ -18,9 +18,6 @@ let tops = tops |> mutate (function
   | E_Var(n) -> Stop(E_Var("destroyed_"^n))
   | E_Int i -> Stop(E_Int (-i))
   | e -> Continue e
-) (function
-  | S_Block _ -> Stop(S_Block [])
-  | e -> Continue e
-) (fun top -> Continue top)
+) none none
 
-let () = List.iter (fun top -> Printf.printf "%s" (print_toplevel top)) tops
+let () = CGen.Absyn.print tops

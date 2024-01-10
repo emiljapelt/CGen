@@ -1,4 +1,4 @@
 (executable
- (public_name CGen)
+ (public_name CGentest)
  (name main)
- (libraries LibCGen))
+ (libraries CGen))

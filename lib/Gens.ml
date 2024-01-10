@@ -1,5 +1,5 @@
 open Absyn
-open LangGen
+open Generators
 
 let pos_int_gen n = Random.int n
 let int_gen n = (Random.int n*2) - (n/2)

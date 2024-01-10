@@ -1,4 +1,4 @@
 (library
- (name LibCGen)
- (modules Absyn LangGen Mutate Gens)
+ (name CGen)
+ (modules Absyn Generators Mutate Gens)
 )
