@@ -106,6 +106,13 @@ let top_dec_gen _ (Generators(counter,type_set,expr_gens,call_gens,stmt_gens,sca
   let new_type_set = type_set |> TypeSet.add typ |> TypeSet.add (Ptr typ) in
   (T_Declare(typ, ident), Generators(counter+1,new_type_set,dec_expr_gens typ ident expr_gens,call_gens,(true,fun gl gs -> (S_Assign(ident,generate_expression typ gl gs),gs))::stmt_gens,scall_gens,toplevel_gens))
 
+let top_dec_ass_gen gl (Generators(counter,type_set,expr_gens,call_gens,stmt_gens,scall_gens,toplevel_gens) as gs) =
+  let ident = "var_"^(string_of_int counter) in
+  let typ = generate_nonvoid () in
+  let expr = generate_expression typ gl gs in
+  let new_type_set = type_set |> TypeSet.add typ |> TypeSet.add (Ptr typ) in
+  (T_DeclareAssign(typ, ident, expr), Generators(counter+1,new_type_set,dec_expr_gens typ ident expr_gens,call_gens,(true,fun gl gs -> (S_Assign(ident,generate_expression typ gl gs),gs))::stmt_gens,scall_gens,toplevel_gens))
+
 let generate_params _ gs =
   let rec aux i (Generators(counter,type_set,expr_gens,call_gens,stmt_gens,scall_gens,toplevel_gens) as gs) acc = match i with
     | 0 -> (acc,gs)
@@ -138,6 +145,7 @@ let function_gen gl (Generators(counter,_,expr_gens,call_gens,stmt_gens,scall_ge
 
 let toplevel_gens = [
   top_dec_gen;
+  top_dec_ass_gen;
   function_gen;
 ]
 
