@@ -50,6 +50,16 @@ and toplevel =
 | T_DeclareAssign of typ * string * expression
 
 
+let rec type_equal typ1 typ2 = match typ1, typ2 with
+  | Int, Int 
+  | Short, Short 
+  | Long, Long 
+  | Char, Char
+  | Float, Float
+  | Void, Void -> 0
+  | Ptr(t1), Ptr(t2) -> type_equal t1 t2
+  | _,_ -> -1
+
 let tab_string i = String.init i (fun _ -> '\t')
 
 let rec print_typ t = match t with
