@@ -40,6 +40,7 @@ let mutate
       | S_DeclareAssign(t,n,expr) -> S_DeclareAssign(t,n,expr_aux expr)
       | S_Assign(n,expr) -> S_Assign(n,expr_aux expr)
       | S_ArrayAssign(n,expr1,expr2) -> S_ArrayAssign(n,expr_aux expr1,expr_aux expr2)
+      | S_DerefAssign(n,expr) -> S_DerefAssign(n,expr_aux expr)
       | S_Block(stmts) -> S_Block(block_aux stmts []) 
       | S_Call(n,exprs) -> S_Call(n,List.map expr_aux exprs)
       | S_Return(expr) -> S_Return(expr_aux expr)
@@ -57,7 +58,8 @@ let mutate
       | Continue new_top -> match new_top with
         | T_Function(ty,n,args,block) -> aux t (T_Function(ty,n,args,block_aux block [])::acc)
         | T_Declare _ -> aux t (new_top::acc)
-        | T_DeclareAssign(ty,n,expr) -> aux t (T_DeclareAssign(ty,n,expr_aux expr)::acc) 
+        | T_DeclareAssign(ty,n,expr) 
+        | T_DeclareArray(ty,n,expr) -> aux t (T_DeclareAssign(ty,n,expr_aux expr)::acc) 
     )
   in 
   aux prog []

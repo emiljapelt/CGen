@@ -34,6 +34,7 @@ and statement =
 | S_DeclareAssign of typ * string * expression
 | S_Assign of string * expression
 | S_ArrayAssign of string * expression * expression
+| S_DerefAssign of string * expression
 | S_Block of statement list
 | S_Call of string * (expression list)
 | S_Return of expression
@@ -48,6 +49,7 @@ and toplevel =
 | T_Function of typ * string * (typ * string) list * statement list
 | T_Declare of typ * string
 | T_DeclareAssign of typ * string * expression
+| T_DeclareArray of typ * string * expression
 
 
 let rec type_equal typ1 typ2 = match typ1, typ2 with
@@ -98,6 +100,7 @@ and print_statement indent s = match s with
 | S_DeclareArray(t, ident, expr) -> tab_string indent ^ print_typ t ^ " " ^ ident ^ "[" ^ print_expression expr ^ "];\n"
 | S_Assign(ident, expr) -> tab_string indent ^ ident ^ " = " ^ print_expression expr ^ ";\n"
 | S_ArrayAssign(ident,idx,expr) -> tab_string indent ^ ident ^ "[" ^print_expression idx^ "]" ^ " = " ^ print_expression expr ^ ";\n"
+| S_DerefAssign(ident,expr) -> tab_string indent ^ "*" ^ ident ^ " = " ^ print_expression expr ^ ";\n"
 | S_Block([]) -> tab_string indent ^"{}\n"
 | S_Block(stmts) -> tab_string indent ^ "{\n" ^ (String.concat "" (List.map (print_statement (indent+1)) stmts)) ^ tab_string indent ^ "}\n"
 | S_Call(ident,args) -> tab_string indent ^ ident ^ "("^(String.concat "," (List.map print_expression args))^");\n"
@@ -113,5 +116,6 @@ and print_toplevel t = match t with
 | T_Function(t,ident,params,block) -> print_typ t ^ " " ^ ident ^ "(" ^ (String.concat "," (List.map (fun (typ,param)-> (print_typ typ) ^" "^ param) params)) ^ ") " ^ "{\n" ^ (String.concat "" (List.map (print_statement 1) block)) ^ "}\n\n"
 | T_Declare(t,ident) -> print_typ t ^ " " ^ ident ^ ";\n"
 | T_DeclareAssign(t,ident,expr) -> print_typ t ^ " " ^ ident ^ " = " ^ print_expression expr ^ ";\n"
+| T_DeclareArray(t, ident, expr) -> print_typ t ^ " " ^ ident ^ "[" ^ print_expression expr ^ "];\n"
 
 let print tops = List.iter (fun top -> Printf.printf "%s" (print_toplevel top)) tops
