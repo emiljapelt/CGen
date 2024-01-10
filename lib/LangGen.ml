@@ -129,9 +129,28 @@ and generate_statement (GenLimit(_,sd) as gl) (Generators(_,_,_,stmt_gens,scall_
 and generate_toplevel gl (Generators(_,_,_,_,_,toplevel_gens) as gs) = 
   let f = List.nth toplevel_gens (Random.int (List.length toplevel_gens)) in f gl gs
 
+and generate_stmt_list min range gl gs =
+  let rec aux i aux_gs acc = match i with
+    | 0 -> List.rev acc
+    | n -> let (stmt,ngs) = generate_statement gl aux_gs in aux (n-1) ngs (stmt::acc)
+  in
+  (aux ((Random.int range)+min) gs [], gs)
+
+and generate_main gl (Generators(counter,expr_gens,call_gens,stmt_gens,scall_gens,toplevel_gens)) = 
+  match () |> Random.bool with
+  | true -> (
+    let (main_block, gs) = generate_stmt_list 4 5 gl (Generators(counter,expr_gens,call_gens,(true,fun gl gs -> (S_Return(generate_expression Int gl gs),gs))::stmt_gens,scall_gens,toplevel_gens)) in
+    T_Function(Int, "main", [], main_block@[S_Return(generate_expression Int gl gs)])
+  )
+  | false -> (
+    let (main_block, _) = generate_stmt_list 4 5 gl (Generators(counter,expr_gens,call_gens,stmt_gens,scall_gens,toplevel_gens)) in
+    T_Function(Void, "main", [], main_block)
+  )
+
 and generate_compilation_unit toplevels gl gs =
   let rec aux i gs acc = match i with
-  | 0 -> (List.rev acc, gs)
+  | 0 -> (List.rev ((generate_main gl gs)::acc), gs)
   | n -> let (top,gs) = generate_toplevel gl gs in aux (n-1) gs (top::acc)
   in
   aux toplevels gs []
+
