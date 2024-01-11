@@ -11,12 +11,12 @@ end)
 type generators =
 | Generators of 
   int * (* Counter *)
-  TypeSet.t *
-  ((typ * bool * (generator_limits -> generators -> expression)) list) * (* Expression generators*)
-  ((typ * TypeSet.t * (generator_limits -> generators -> expression)) list) * (* Call generators *)
-  ((bool * TypeSet.t * (generator_limits -> generators -> (statement*generators))) list) * (* Statement generators*)
-  ((TypeSet.t * (generator_limits -> generators -> (statement*generators))) list) * (* Call generators*)
-  ((generator_limits -> generators -> (toplevel*generators)) list) (* Toplevel generators *)
+  TypeSet.t * (* Available types *)
+  ((typ * bool * (generator_limits -> generators -> expression)) list) * (* Expression generators (expr_type, is_flat, generator) *)
+  ((typ * TypeSet.t * (generator_limits -> generators -> expression)) list) * (* Call generators (expr_type, required_types, generator) *)
+  ((bool * TypeSet.t * (generator_limits -> generators -> (statement*generators))) list) * (* Statement generators (is_flat, required_types, generator) *)
+  ((TypeSet.t * (generator_limits -> generators -> (statement*generators))) list) * (* Call generators (required_types, generator) *)
+  ((generator_limits -> generators -> (toplevel*generators)) list) (* Toplevel generators (generator) *)
 
 and generator_limits =
 | GenLimit of 
