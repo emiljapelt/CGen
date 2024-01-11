@@ -9,7 +9,7 @@ open CGen.Gens
 let seed = int_of_string (Sys.argv.(1))
 let () = if seed = 0 then Random.self_init () else Random.init seed
 let gs = generate_generators expr_gens stmt_gens toplevel_gens
-let gl = (GenLimit(int_of_string (Sys.argv.(2)),int_of_string (Sys.argv.(3)))) 
+let gl = (GenLimit(int_of_string (Sys.argv.(2)),int_of_string (Sys.argv.(3)), (1,4)))
 let tops = int_of_string (Sys.argv.(4))
 
 let (tops, _) = generate_compilation_unit tops gl gs

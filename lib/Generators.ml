@@ -4,7 +4,7 @@ open Absyn
 module TypeSet = Set.Make (struct
   type t = typ
 
-  let compare = type_equal
+  let compare = fun t1 t2 -> compare (print_typ t1) (print_typ t2)
 end)
 
 (** Generator **)
@@ -16,12 +16,13 @@ type generators =
   ((typ * TypeSet.t * (generator_limits -> generators -> expression)) list) * (* Call generators (expr_type, required_types, generator) *)
   ((bool * TypeSet.t * (generator_limits -> generators -> (statement*generators))) list) * (* Statement generators (is_flat, required_types, generator) *)
   ((TypeSet.t * (generator_limits -> generators -> (statement*generators))) list) * (* Call generators (required_types, generator) *)
-  ((generator_limits -> generators -> (toplevel*generators)) list) (* Toplevel generators (generator) *)
+  ((bool * (generator_limits -> generators -> (toplevel*generators))) list) (* Toplevel generators (base_gs, generator) *)
 
 and generator_limits =
 | GenLimit of 
   int * (* Remaining expression depth *)
-  int (* Remaining statement depth *)
+  int * (* Remaining statement depth *)
+  (int * int ) (* block min & range *)
 
 let types lst = TypeSet.of_list lst
 
@@ -38,11 +39,11 @@ let combine
   =
   (Generators(max counter counter',TypeSet.union type_set type_set',expr_gens @ expr_gens',call_gens @ call_gens',stmt_gens @ stmt_gens',scall_gens @ scall_gens',toplevel_gens @ toplevel_gens'))
 
-let gs_expr_dec (GenLimit(expr_depth,stmt_depth)) =
-  GenLimit(expr_depth-1,stmt_depth)
+let gs_expr_dec (GenLimit(expr_depth,stmt_depth,block_lim)) =
+  GenLimit(expr_depth-1,stmt_depth,block_lim)
 
-let gs_stmt_dec (GenLimit(expr_depth,stmt_depth)) =
-  GenLimit(expr_depth,stmt_depth-1)
+let gs_stmt_dec (GenLimit(expr_depth,stmt_depth,block_lim)) =
+  GenLimit(expr_depth,stmt_depth-1,block_lim)
 
 let generate_type () = match Random.int 6 with
 | 0 -> Short
@@ -73,7 +74,7 @@ let rec generate_binary_op () = match Random.int 4 with
 | 3 -> DIVIDE
 | _ -> failwith "Unknown binary operator"
 
-and generate_expression typ (GenLimit(ed,_) as gl) (Generators(_,type_set,expr_gens,call_gens,_,_,_) as gs) = 
+and generate_expression typ (GenLimit(ed,_,_) as gl) (Generators(_,type_set,expr_gens,call_gens,_,_,_) as gs) = 
   let generate gens = 
     let (_,_,f) = List.nth gens (Random.int (List.length gens)) in f (gs_expr_dec gl) gs
   in
@@ -89,7 +90,7 @@ and generate_expression typ (GenLimit(ed,_) as gl) (Generators(_,type_set,expr_g
   | true -> generate (possible_exprs ())
   | false -> let call_gens = possible_calls () in if call_gens = [] then generate (possible_exprs ()) else generate call_gens
 
-and generate_statement (GenLimit(_,sd) as gl) (Generators(_,type_set,_,_,stmt_gens,scall_gens,_) as gs) = 
+and generate_statement (GenLimit(_,sd,_) as gl) (Generators(_,type_set,_,_,stmt_gens,scall_gens,_) as gs) = 
   let generate gens = 
     let f = List.nth gens (Random.int (List.length gens)) in f (gs_stmt_dec gl) gs
   in
@@ -100,12 +101,15 @@ and generate_statement (GenLimit(_,sd) as gl) (Generators(_,type_set,_,_,stmt_ge
   let possible_calls () =
     if sd <= 0 then [] else List.filter_map (fun (param_types,f) -> if TypeSet.subset param_types type_set then Some f else None) scall_gens
   in
+  (*Printf.printf "Available: %s\n" (TypeSet.to_list type_set |> List.map print_typ |> String.concat ", ");
+  List.iter (fun (ps,_) -> Printf.printf "\t%s\n" (TypeSet.to_list ps |> List.map print_typ |> String.concat ", ")) scall_gens;*)
   match () |> Random.bool with
   | true -> generate (possible_stmts ())
   | false -> let call_gens = possible_calls () in if call_gens = [] then generate (possible_stmts ()) else generate call_gens
 
-and generate_toplevel gl (Generators(_,_,_,_,_,_,toplevel_gens) as gs) = 
-  let f = List.nth toplevel_gens (Random.int (List.length toplevel_gens)) in f gl gs
+and generate_toplevel gl gs (Generators(_,_,_,_,_,_,toplevel_gens) as base_gs) = 
+  let (base,f) = List.nth toplevel_gens (Random.int (List.length toplevel_gens)) in 
+  if base then f gl base_gs else f gl gs
 
 and generate_stmt_list min range gl gs =
   let rec aux i aux_gs acc = match i with
@@ -114,20 +118,20 @@ and generate_stmt_list min range gl gs =
   in
   (aux ((Random.int range)+min) gs [], gs)
 
-and generate_main gl (Generators(counter,type_set,expr_gens,call_gens,stmt_gens,scall_gens,toplevel_gens)) = 
+and generate_main (GenLimit(_,_,(b_min,b_range)) as gl) (Generators(counter,type_set,expr_gens,call_gens,stmt_gens,scall_gens,toplevel_gens)) = 
   match () |> Random.bool with
   | true -> (
-    let (main_block, gs) = generate_stmt_list 4 5 gl (Generators(counter,type_set,expr_gens,call_gens,(true,types [Int],fun gl gs -> (S_Return(generate_expression Int gl gs),gs))::stmt_gens,scall_gens,toplevel_gens)) in
+    let (main_block, gs) = generate_stmt_list b_min b_range gl (Generators(counter,type_set,expr_gens,call_gens,(true,types [Int],fun gl gs -> (S_Return(generate_expression Int gl gs),gs))::stmt_gens,scall_gens,toplevel_gens)) in
     T_Function(Int, "main", [], main_block@[S_Return(generate_expression Int gl gs)])
   )
   | false -> (
-    let (main_block, _) = generate_stmt_list 4 5 gl (Generators(counter,type_set,expr_gens,call_gens,stmt_gens,scall_gens,toplevel_gens)) in
+    let (main_block, _) = generate_stmt_list b_min b_range gl (Generators(counter,type_set,expr_gens,call_gens,stmt_gens,scall_gens,toplevel_gens)) in
     T_Function(Void, "main", [], main_block)
   )
 
 and generate_compilation_unit toplevels gl base_gs =
   let rec aux i gs cnt acc = match i with
   | 0 -> (List.rev ((generate_main gl gs)::acc), gs)
-  | n -> let (top,ngs) = generate_toplevel gl (set_counter cnt base_gs) in aux (n-1) (combine gs ngs) (cnt+1) (top::acc)
+  | n -> let (top,ngs) = generate_toplevel gl (set_counter cnt gs) (set_counter cnt base_gs) in aux (n-1) (combine gs ngs) (cnt+1) (top::acc)
   in
   aux toplevels base_gs 0 []

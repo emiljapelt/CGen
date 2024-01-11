@@ -77,18 +77,18 @@ let dec_ass_gen gl (Generators(counter,type_set,expr_gens,call_gens,stmt_gens,sc
   let new_type_set = TypeSet.union type_set (types [typ; Ptr typ]) in
   (S_DeclareAssign(typ, ident, generate_expression typ gl gs), Generators(counter+1,new_type_set,(dec_expr_gens typ ident expr_gens),call_gens, dec_stmt_gens typ ident stmt_gens,scall_gens,toplevel_gens))
 
-let block_gen min range gl gs =
-  let (stmts,_) = generate_stmt_list min range gl gs in
+let block_gen (GenLimit(_,_,(b_min,b_range))as gl) gs =
+  let (stmts,_) = generate_stmt_list b_min b_range gl gs in
   (S_Block(stmts), gs)
 
 let if_gen gl gs =
-  let (stmt1,_) = block_gen 0 4 gl gs in
-  let (stmt2,_) = block_gen 0 4 gl gs in
+  let (stmt1,_) = block_gen gl gs in
+  let (stmt2,_) = block_gen gl gs in
   (S_If(generate_expression Int gl gs, stmt1, stmt2), gs)
 
 let while_gen gl (Generators(counter,type_set,expr_gens,call_gens,stmt_gens,scall_gens,top_gens) as gs) =
   let cond = generate_expression Int gl gs in
-  let (stmt,_) = block_gen 1 4 gl (Generators(counter,type_set,expr_gens,call_gens,(true, TypeSet.empty,fun _ gs -> (S_Break,gs))::(true,TypeSet.empty,fun _ gs -> (S_Continue,gs))::stmt_gens,scall_gens,top_gens)) in
+  let (stmt,_) = block_gen gl (Generators(counter,type_set,expr_gens,call_gens,(true, TypeSet.empty,fun _ gs -> (S_Break,gs))::(true,TypeSet.empty,fun _ gs -> (S_Continue,gs))::stmt_gens,scall_gens,top_gens)) in
   match () |> Random.bool with
   | true -> (S_DoWhile(stmt,cond), gs)
   | false -> (S_While(cond,stmt), gs)
@@ -97,33 +97,28 @@ let stmt_gens = [
   (true, TypeSet.empty, dec_gen);
   (true, TypeSet.empty, dec_ass_gen);
   (true, TypeSet.empty, dec_arr_gen);
-  (false, TypeSet.empty, block_gen 2 5);
+  (false, TypeSet.empty, block_gen);
   (false, TypeSet.empty, if_gen);
   (false, TypeSet.empty, while_gen)
 ]
 
 
-let top_dec_gen _ (Generators(counter,type_set,expr_gens,call_gens,stmt_gens,scall_gens,toplevel_gens)) =
+let top_dec_gen gl (Generators(counter,type_set,expr_gens,call_gens,stmt_gens,scall_gens,toplevel_gens) as gs) =
   let ident = "var_"^(string_of_int counter) in
   let typ = generate_nonvoid () in
   let new_type_set = TypeSet.union type_set (types [typ; Ptr typ]) in
-  (T_Declare(typ, ident), Generators(counter+1,new_type_set,dec_expr_gens typ ident expr_gens,call_gens,dec_stmt_gens typ ident stmt_gens,scall_gens,toplevel_gens))
-
-let top_dec_ass_gen gl (Generators(counter,type_set,expr_gens,call_gens,stmt_gens,scall_gens,toplevel_gens) as gs) =
-  let ident = "var_"^(string_of_int counter) in
-  let typ = generate_nonvoid () in
-  let expr = generate_expression typ gl gs in
-  let new_type_set = TypeSet.union type_set (types [typ; Ptr typ]) in
-  (T_DeclareAssign(typ, ident, expr), Generators(counter+1,new_type_set,dec_expr_gens typ ident expr_gens,call_gens,dec_stmt_gens typ ident stmt_gens,scall_gens,toplevel_gens))
-
-let top_dec_arr_gen _ (Generators(counter,type_set,expr_gens,call_gens,stmt_gens,scall_gens,toplevel_gens)) =
-  let ident = "var_"^(string_of_int counter) in
-  let typ = generate_nonvoid () in
-  let arr_typ = Ptr typ in
-  let size = (Random.int 100) + 1 in
-  let new_type_set = TypeSet.union type_set (types [typ; arr_typ; Ptr arr_typ]) in
-  (T_DeclareArray(typ,ident,E_Int size), (Generators(counter+1,new_type_set,(Ptr arr_typ,true,(fun _ _ -> E_Addr ident))::(arr_typ,true,(fun _ _ -> E_Var ident))::(typ,true,(fun _ _ -> E_Index(ident, E_Int(pos_int_gen size))))::expr_gens,call_gens, (true, types [typ], fun gl gs -> (S_ArrayAssign(ident,E_Int(pos_int_gen size),generate_expression typ gl gs),gs))::stmt_gens,scall_gens,toplevel_gens)) )
-  
+  match Random.int 3 with
+  | 0 -> (T_Declare(typ, ident), Generators(counter+1,new_type_set,dec_expr_gens typ ident expr_gens,call_gens,dec_stmt_gens typ ident stmt_gens,scall_gens,toplevel_gens))
+  | 1 -> (
+    let expr = generate_expression typ gl gs in
+    (T_DeclareAssign(typ, ident, expr), Generators(counter+1,new_type_set,dec_expr_gens typ ident expr_gens,call_gens,dec_stmt_gens typ ident stmt_gens,scall_gens,toplevel_gens))
+  )
+  | 2 -> (
+    let arr_typ = Ptr typ in
+    let size = (Random.int 100) + 1 in
+    (T_DeclareArray(typ,ident,E_Int size), (Generators(counter+1,new_type_set,(Ptr arr_typ,true,(fun _ _ -> E_Addr ident))::(arr_typ,true,(fun _ _ -> E_Var ident))::(typ,true,(fun _ _ -> E_Index(ident, E_Int(pos_int_gen size))))::expr_gens,call_gens, (true, types [typ], fun gl gs -> (S_ArrayAssign(ident,E_Int(pos_int_gen size),generate_expression typ gl gs),gs))::stmt_gens,scall_gens,toplevel_gens)) )
+  )
+  | _ -> failwith "Nope"
 
 let generate_params _ gs =
   let rec aux i (Generators(counter,type_set,expr_gens,call_gens,stmt_gens,scall_gens,toplevel_gens) as gs) acc = match i with
@@ -156,9 +151,9 @@ let function_gen gl (Generators(counter,_,expr_gens,call_gens,stmt_gens,scall_ge
   (T_Function(typ, ident, params, stmts), Generators(counter+1,type_set,expr_gens,new_call_gens,stmt_gens,(param_types,fun gl gs -> S_Call(ident, List.map (fun (t,_) -> generate_expression t gl gs) params),gs)::scall_gens, toplevel_gens))
 
 let toplevel_gens = [
-  top_dec_gen;
-  top_dec_ass_gen;
-  top_dec_arr_gen;
-  function_gen;
+  (true, top_dec_gen);
+  (*(true, top_dec_ass_gen);*)
+  (*(true, top_dec_arr_gen);*)
+  (false, function_gen);
 ]
 
