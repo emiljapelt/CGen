@@ -2,3 +2,6 @@
  (name CGen)
  (modules Absyn Generators Mutate Gens)
 )
+(env
+  (dev
+    (flags (:standard -w -66 -w -26))))

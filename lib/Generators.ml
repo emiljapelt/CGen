@@ -14,7 +14,7 @@ type generators =
   TypeSet.t *
   ((typ * bool * (generator_limits -> generators -> expression)) list) * (* Expression generators*)
   ((typ * TypeSet.t * (generator_limits -> generators -> expression)) list) * (* Call generators *)
-  ((bool * (generator_limits -> generators -> (statement*generators))) list) * (* Statement generators*)
+  ((bool * TypeSet.t * (generator_limits -> generators -> (statement*generators))) list) * (* Statement generators*)
   ((TypeSet.t * (generator_limits -> generators -> (statement*generators))) list) * (* Call generators*)
   ((generator_limits -> generators -> (toplevel*generators)) list) (* Toplevel generators *)
 
@@ -23,9 +23,20 @@ and generator_limits =
   int * (* Remaining expression depth *)
   int (* Remaining statement depth *)
 
+let types lst = TypeSet.of_list lst
+
 let generate_generators expr_gens stmt_gens top_gens =
   let type_set = List.fold_left (fun set (t,_,_) -> TypeSet.add t set) TypeSet.empty expr_gens in
   Generators(0,type_set,expr_gens,[],stmt_gens,[],top_gens)
+
+let set_counter cnt (Generators(_,type_set,expr_gens,call_gens,stmt_gens,scall_gens,toplevel_gens)) =
+  (Generators(cnt,type_set,expr_gens,call_gens,stmt_gens,scall_gens,toplevel_gens)) 
+
+let combine 
+  (Generators(counter,type_set,expr_gens,call_gens,stmt_gens,scall_gens,toplevel_gens)) 
+  (Generators(counter',type_set',expr_gens',call_gens',stmt_gens',scall_gens',toplevel_gens')) 
+  =
+  (Generators(max counter counter',TypeSet.union type_set type_set',expr_gens @ expr_gens',call_gens @ call_gens',stmt_gens @ stmt_gens',scall_gens @ scall_gens',toplevel_gens @ toplevel_gens'))
 
 let gs_expr_dec (GenLimit(expr_depth,stmt_depth)) =
   GenLimit(expr_depth-1,stmt_depth)
@@ -80,13 +91,14 @@ and generate_expression typ (GenLimit(ed,_) as gl) (Generators(_,type_set,expr_g
 
 and generate_statement (GenLimit(_,sd) as gl) (Generators(_,type_set,_,_,stmt_gens,scall_gens,_) as gs) = 
   let generate gens = 
-    let (_,f) = List.nth gens (Random.int (List.length gens)) in f (gs_stmt_dec gl) gs
+    let f = List.nth gens (Random.int (List.length gens)) in f (gs_stmt_dec gl) gs
   in
   let possible_stmts () = 
-    if sd <= 0 then List.filter (fun (flat,_) -> flat) stmt_gens else stmt_gens
+    let gens = if sd <= 0 then List.filter (fun (flat,_,_) -> flat) stmt_gens else stmt_gens in
+    List.filter_map (fun (_,req_types,f) -> if TypeSet.subset req_types type_set then Some f else None) gens
   in
   let possible_calls () =
-    if sd <= 0 then [] else List.filter (fun (param_types,_) -> TypeSet.subset param_types type_set) scall_gens
+    if sd <= 0 then [] else List.filter_map (fun (param_types,f) -> if TypeSet.subset param_types type_set then Some f else None) scall_gens
   in
   match () |> Random.bool with
   | true -> generate (possible_stmts ())
@@ -105,7 +117,7 @@ and generate_stmt_list min range gl gs =
 and generate_main gl (Generators(counter,type_set,expr_gens,call_gens,stmt_gens,scall_gens,toplevel_gens)) = 
   match () |> Random.bool with
   | true -> (
-    let (main_block, gs) = generate_stmt_list 4 5 gl (Generators(counter,type_set,expr_gens,call_gens,(true,fun gl gs -> (S_Return(generate_expression Int gl gs),gs))::stmt_gens,scall_gens,toplevel_gens)) in
+    let (main_block, gs) = generate_stmt_list 4 5 gl (Generators(counter,type_set,expr_gens,call_gens,(true,types [Int],fun gl gs -> (S_Return(generate_expression Int gl gs),gs))::stmt_gens,scall_gens,toplevel_gens)) in
     T_Function(Int, "main", [], main_block@[S_Return(generate_expression Int gl gs)])
   )
   | false -> (
@@ -113,9 +125,9 @@ and generate_main gl (Generators(counter,type_set,expr_gens,call_gens,stmt_gens,
     T_Function(Void, "main", [], main_block)
   )
 
-and generate_compilation_unit toplevels gl gs =
-  let rec aux i gs acc = match i with
+and generate_compilation_unit toplevels gl base_gs =
+  let rec aux i gs cnt acc = match i with
   | 0 -> (List.rev ((generate_main gl gs)::acc), gs)
-  | n -> let (top,gs) = generate_toplevel gl gs in aux (n-1) gs (top::acc)
+  | n -> let (top,ngs) = generate_toplevel gl (set_counter cnt base_gs) in aux (n-1) (combine gs ngs) (cnt+1) (top::acc)
   in
-  aux toplevels gs []
+  aux toplevels base_gs 0 []
