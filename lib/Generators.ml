@@ -101,8 +101,6 @@ and generate_statement (GenLimit(_,sd,_) as gl) (Generators(_,type_set,_,_,stmt_
   let possible_calls () =
     if sd <= 0 then [] else List.filter_map (fun (param_types,f) -> if TypeSet.subset param_types type_set then Some f else None) scall_gens
   in
-  (*Printf.printf "Available: %s\n" (TypeSet.to_list type_set |> List.map print_typ |> String.concat ", ");
-  List.iter (fun (ps,_) -> Printf.printf "\t%s\n" (TypeSet.to_list ps |> List.map print_typ |> String.concat ", ")) scall_gens;*)
   match () |> Random.bool with
   | true -> generate (possible_stmts ())
   | false -> let call_gens = possible_calls () in if call_gens = [] then generate (possible_stmts ()) else generate call_gens
